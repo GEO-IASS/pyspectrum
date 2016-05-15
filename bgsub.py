@@ -9,7 +9,7 @@ DEFAULT_PATH = "/home/danielle/Documents/LMCE"
 
 SpectrumData = namedtuple("SpectrumData", ['X', 'Y', 'info'])
 
-def load_file(filename):
+def load_file(filename: str) -> SpectrumData:
     """Loads file from directory ** needs input to be a fully qualified file path
     Returns a new list of tuples (x,y) containing points where x = wavenums and y = intensities"""
 
@@ -44,8 +44,8 @@ def load_file(filename):
 
     return SpectrumData(X, Y, data)
 
-def filter_negative(data):
-    """Filters out negative data from spectrum data
+def filter_negative(data: SpectrumData) -> SpectrumData:
+    """Filters out negative data from spectrum datas
     Returns original data without negative values"""
     # return [elem for elem in data if elem > 0]
     return SpectrumData(data.X, data.Y, [elem for elem in data.info if elem > 0])
@@ -55,7 +55,7 @@ def plot_spectrum(data):
     plt.scatter(*zip(*data))
     plt.show()
 
-def bg_subtract(data):
+def bg_subtract(data: SpectrumData) -> SpectrumData:
     """Returns background subtracted data set"""
     # TODO: from the horizontal line slider
     for i in range(len(data.info)):
@@ -66,24 +66,30 @@ def bg_subtract(data):
     min_y = min(data.info, key=lambda tup: tup[1])[1]
     return SpectrumData(data.X, data.Y, [(x, y - min_y) for x, y in data.info])
 
-def trapezoidal_sum(data):
+def trapezoidal_sum(data: list, w_num1: int, w_num2: int) -> float:
     """Calculates the area under the curve by trapezoidal method
     Two adjacent points in the data set are used to create a trapezoid and calculate its area
     Continues for all other points in the set and sums areas together,
     returning total area"""
-    # TODO: check if points are within user inputted range
+
+    # Check if points are within user inputted range
+    culled_data = []
+    for point in data:
+        if w_num1 <= point[0] <= w_num2:
+            culled_data.append(point)
+
     total_area = 0
 
     # Iterates over all points in data set
-    for index in range(len(data.info)-1):
+    for index in range(len(culled_data)-1):
 
         # Next adjacent point to current point
-        next_point = data.info[index + 1]
+        next_point = culled_data[index + 1]
 
         # Change in x between the points
-        dx = next_point.info[0] - data.info[index][0]
-        r_y = data.info[index][1]
-        t_y = next_point.info[1] - r_y
+        dx = next_point[0] - culled_data[index][0]
+        r_y = culled_data[index][1]
+        t_y = next_point[1] - r_y
 
         # Area of current trapezoid
         area = (r_y * dx) + (0.5 * dx * t_y)
@@ -91,16 +97,31 @@ def trapezoidal_sum(data):
 
     return total_area
 
-def specific_peak(w_num1, w_num2, data):
+def create_heatmap(spectra: list(SpectrumData), w_num1: int, w_num2: int):
+    master_list = []
+    X_list = []
+    for each in spectra:
+        X_list.append(spectra.X)
+    X_list.sort()
+    for X in X_list:
+        temp = []
+        for SD in spectra:
+            if SD.X == X:
+                temp.append((SD.Y, SD.info))
+            temp.sort(key=lambda tup: tup[0])
+            master_list.append(trapezoidal_sum([elem[1] for elem in temp], w_num1, w_num2))
 
-    culled_data = []
+    # Transpose matrix
+    transform = []
+    for i in range(len(master_list[0])):
+        transpose = []
+        for j in range(len(master_list)):
+            transpose.append(master_list[j][i])
+        transform.append(transpose)
 
-    for point in data.info:
-        if w_num1 <= point[0] <= w_num2:
-            culled_data.append(point)
+    # Convert to numpy array
 
-def create_heatmap():
-    pass
+    # Plot
 
 def main(path):
     file_list = sorted(os.listdir(path))
