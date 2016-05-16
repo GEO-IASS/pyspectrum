@@ -13,7 +13,6 @@ from matplotlib import pyplot as plt
 
 DEFAULT_PATH = "/home/danielle/Documents/LMCE"
 
-
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
 
