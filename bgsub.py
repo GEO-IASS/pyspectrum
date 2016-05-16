@@ -4,8 +4,10 @@ import sys
 from collections import namedtuple
 from matplotlib import pyplot as plt
 import re
+import numpy as np
+import math
 
-DEFAULT_PATH = "/home/danielle/Documents/LMCE"
+DEFAULT_PATH = "/home/danielle/Documents/LMCE_one"
 
 SpectrumData = namedtuple("SpectrumData", ['X', 'Y', 'info'])
 
@@ -27,7 +29,7 @@ def load_file(filename: str) -> SpectrumData:
                 curr_intens.append(float(row[1]))
 
             # Create a list of points (x,y) where x = wavenumbers and y = intensities
-            data = zip(curr_wavenums, curr_intens)
+            data = list(zip(curr_wavenums, curr_intens))
 
     # Find bigX and bigY in the file name, append them to SpectrumData object
     matches = re.findall('[+-]?[XY]_.[0-9]+\.[0-9]+', filename)
@@ -37,10 +39,10 @@ def load_file(filename: str) -> SpectrumData:
 
     for match in matches:
         if "X_" in match:
-            X = match
+            X = match[2:]
 
         if "Y_" in match:
-            Y = match
+            Y = match[2:]
 
     return SpectrumData(X, Y, data)
 
@@ -48,11 +50,11 @@ def filter_negative(data: SpectrumData) -> SpectrumData:
     """Filters out negative data from spectrum datas
     Returns original data without negative values"""
     # return [elem for elem in data if elem > 0]
-    return SpectrumData(data.X, data.Y, [elem for elem in data.info if elem > 0])
+    return SpectrumData(data.X, data.Y, [elem for elem in data.info if elem[0] and elem[1] > 0])
 
-def plot_spectrum(data):
+def plot_spectrum(data: SpectrumData):
     """Creates x-y scatter plot of the spectrum data"""
-    plt.scatter(*zip(*data))
+    plt.scatter(*zip(*data.info))
     plt.show()
 
 def bg_subtract(data: SpectrumData) -> SpectrumData:
@@ -70,7 +72,10 @@ def trapezoidal_sum(data: list, w_num1: int, w_num2: int) -> float:
     """Calculates the area under the curve by trapezoidal method
     Two adjacent points in the data set are used to create a trapezoid and calculate its area
     Continues for all other points in the set and sums areas together,
-    returning total area"""
+    returning total area
+    w_num1 = x @ left vertical
+    w_num2 = x @ right vertical
+    """
 
     # Check if points are within user inputted range
     culled_data = []
@@ -95,13 +100,19 @@ def trapezoidal_sum(data: list, w_num1: int, w_num2: int) -> float:
         area = (r_y * dx) + (0.5 * dx * t_y)
         total_area += area
 
+    # Subtract area under horizontal line drawn between w_num1 & w_num2
+    under_area = subtract_lower(culled_data)
+    total_area -= under_area
+
     return total_area
 
-def create_heatmap(spectra: list(SpectrumData), w_num1: int, w_num2: int):
+def create_heatmap(spectra: list, w_num1: int, w_num2: int):
+
     master_list = []
+
     X_list = []
     for each in spectra:
-        X_list.append(spectra.X)
+        X_list.append(each.X)
     X_list.sort()
     for X in X_list:
         temp = []
@@ -109,32 +120,63 @@ def create_heatmap(spectra: list(SpectrumData), w_num1: int, w_num2: int):
             if SD.X == X:
                 temp.append((SD.Y, SD.info))
             temp.sort(key=lambda tup: tup[0])
-            master_list.append(trapezoidal_sum([elem[1] for elem in temp], w_num1, w_num2))
+        trap_sums = []
+        for y, info in temp:
+            trap_sums.append(trapezoidal_sum(info, w_num1, w_num2))
+        master_list.append(trap_sums)
+
+    print(master_list)
 
     # Transpose matrix
     transform = []
-    for i in range(len(master_list[0])):
-        transpose = []
-        for j in range(len(master_list)):
-            transpose.append(master_list[j][i])
-        transform.append(transpose)
+    if len(master_list) > 1:
+        for i in range(len(master_list[0])):
+            transpose = []
+            for j in range(len(master_list)):
+                transpose.append(master_list[j][i])
+            transform.append(transpose)
+    else:
+        transform = [master_list]
 
     # Convert to numpy array
+    transform = np.array(transform)
 
     # Plot
+    plt.pcolor(transform, cmap=plt.cm.Blues)
+    plt.show()
+
+def subtract_lower(data: list):
+
+    # Get lowest and highest points according to x
+    data.sort(key=lambda tup: tup[0])
+    p0 = data[0]
+    p1 = data[-1]
+
+    # slope = (p1[1] - p0[1])/(p1[0] - p0[0])
+    # dist = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+
+    horiz = abs(p1[1] - p0[1])
+    vert = abs(p1[0] - p0[0])
+
+    area_tri = 0.5 * horiz * vert
+
+    area_rec = horiz * vert
+
+    total_area = area_rec + area_tri
+
+    return total_area
 
 def main(path):
     file_list = sorted(os.listdir(path))
     os.chdir(path)
     spectra = []
     for each in file_list:
-        print(each)
         spectrum = load_file(each)
         spectrum.info.sort(key=lambda tup: tup[0])
-        spectrum = filter_negative(spectrum.info)
-        spectrum = bg_subtract(spectrum.info)
+        spectrum = filter_negative(spectrum)
         spectra.append(spectrum)
-    plot_spectrum(spectra[-1])
+        plot_spectrum(spectrum)
+    create_heatmap(spectra, 3000, 4000)
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)
