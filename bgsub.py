@@ -11,7 +11,7 @@ from pprint import pprint
 import numpy as np
 from matplotlib import pyplot as plt
 
-DEFAULT_PATH = "/home/danielle/Documents/LMCE"
+DEFAULT_PATH = "/home/danielle/Documents/Test/Test"
 
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
@@ -123,6 +123,18 @@ def create_heatmap(spectra: list, w_num1: int, w_num2: int):
     spectra.sort(key=attrgetter("y"))
     spectra.sort(key=attrgetter("x"))
     pprint(spectra)
+    num_xs, num_ys = get_num_xys(spectra)
+    # Calculate all trapezoidal sums for every point
+    transform = np.array([s.trapezoidal_sum(w_num1, w_num2) for s in spectra])
+    # Turns 1D transform array into 2D ndarray
+    transform = transform.reshape((num_ys, num_xs))
+    print(transform)
+    # Plot
+    plt.imshow(transform, interpolation='bilinear', origin='lower', cmap='Reds')
+    plt.savefig("heat_map.png")
+
+
+def get_num_xys(spectra: list) -> (int, int):
     # Gets the number of Ys per X
     curr_x = spectra[0].x
     num_ys = 0
@@ -132,14 +144,7 @@ def create_heatmap(spectra: list, w_num1: int, w_num2: int):
         else:
             num_ys = indx
             break
-    # Calculate all trapezoidal sums for every point
-    transform = np.array([s.trapezoidal_sum(w_num1, w_num2) for s in spectra])
-    # Turns 1D transform array into 2D ndarray
-    transform = transform.reshape((num_ys, len(spectra) // num_ys))
-    print(transform)
-    # Plot
-    plt.pcolor(transform, cmap=plt.cm.Blues)
-    plt.savefig("heat_map.png")
+    return (len(spectra) // num_ys, num_ys)
 
 
 def subtract_lower(data: np.array):
@@ -157,6 +162,39 @@ def subtract_lower(data: np.array):
 
     return total_area
 
+def remap_image(spectra: list):
+    """
+    Takes the ith intensity from each spectrum with a matching wavenumber.
+    This becomes a list of i arrays, which will then be converted
+    to an intensity heatmap.
+    """
+
+    # Initialize the list
+    intens_array = []
+
+    # Iterate through each SpectrumData object in spectra list,
+    # getting the ith itensity for each object and putting it in a sublist
+    # put this sublist into intens_array
+    for i in range(len(spectra[0].info)):
+        sublist = []
+        for spectrum in spectra:
+            sublist.append(spectrum.info[i][1])
+        intens_array.append(sublist)
+
+    # Get the dimensions of the heatmap (numxs, numys)
+    intens_array = np.array(intens_array)
+    num_xs, num_ys = get_num_xys(spectra)
+
+    # Reshape the lists in intens_array to an array numxs by numys dimensions
+    reshaped_intens = []
+    for ith_intens in intens_array:
+        reshaped_intens.append(ith_intens.reshape(num_ys, num_xs))
+
+    # Make heatmaps for all reshaped arrays, naming each by wavenumber
+    wavenums = [wavenum for wavenum, _ in spectra[0].info]
+    for wavenum, intens in zip(wavenums, reshaped_intens):
+        plt.imshow(intens, origin='lower', cmap='binary')
+        plt.savefig("{}.png".format(wavenum))
 
 def main(path):
     file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
@@ -164,7 +202,8 @@ def main(path):
     spectra = []
     for each in file_list:
         spectra.append(SpectrumData.from_file(each))
-    create_heatmap(spectra, 3000, 4000)
+    # create_heatmap(spectra, 820, 985)
+    remap_image(spectra)
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)
