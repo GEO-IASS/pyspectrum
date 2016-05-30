@@ -10,8 +10,48 @@ from pprint import pprint
 
 import numpy as np
 from matplotlib import pyplot as plt
+from PIL import Image
 
-DEFAULT_PATH = "/home/danielle/Documents/Test/Test"
+DEFAULT_PATH = "/home/danielle/Downloads/Rename/Rename"
+
+class SpectrumCollection(object):
+
+    def __init__(self, row_data, x_to_y):
+
+        self.row_data = row_data
+        self.x_to_y = x_to_y
+
+        def get_spec_data(data: list):
+
+            spec_collect = {}
+            # list of spectrumdata objects
+            for spec in data:
+                spec_collect.update({(spec.x, spec.y) : spec})
+
+            x_to_y = {}
+            y_list = []
+            indx = 0
+            for spectrum in data:
+                curr_x = data[indx].x
+                if curr_x == spectrum.x:
+                    y_list.append(spectrum.y)
+                    indx+=1
+                else:
+                    x_to_y.update({spectrum.x : y_list})
+
+            return SpectrumCollection(spec_collect, x_to_y)
+
+        def fill_array(SpectrumCollection):
+            biggest = 0
+            for x, y_list in x_to_y:
+                if len(y_list) > biggest:
+                    biggest = len(y_list)
+
+            img_array = np.zeros(biggest, len(x_to_y.keys()))
+
+            for i, (x, y_list) in enumerate(x_to_y.items()):
+                for j, y in enumerate(y_list):
+                    img_array[i][j] = SpectrumCollection.spec_collect[(x, y)].info[i]
 
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
@@ -77,6 +117,7 @@ class SpectrumData(object):
                 start_x = i
                 break
         end_x = len(self.info)
+
         for i in range(len(self.info) - 1, 0, -1):
             if self.info[i][0] < w_num2:
                 end_x = i + 1
@@ -120,6 +161,7 @@ def bg_subtract(data: SpectrumData) -> SpectrumData:
 
 
 def create_heatmap(spectra: list, w_num1: int, w_num2: int):
+
     spectra.sort(key=attrgetter("y"))
     spectra.sort(key=attrgetter("x"))
     pprint(spectra)
@@ -142,8 +184,9 @@ def get_num_xys(spectra: list) -> (int, int):
         if curr_x == spectrum.x:
             continue
         else:
-            num_ys = indx
+            num_ys = indx - 1
             break
+    #num_xs = int(spectra[0].x - spectra[-1].x)
     return (len(spectra) // num_ys, num_ys)
 
 
@@ -181,6 +224,7 @@ def remap_image(spectra: list):
             sublist.append(spectrum.info[i][1])
         intens_array.append(sublist)
 
+
     # Get the dimensions of the heatmap (numxs, numys)
     intens_array = np.array(intens_array)
     num_xs, num_ys = get_num_xys(spectra)
@@ -188,13 +232,20 @@ def remap_image(spectra: list):
     # Reshape the lists in intens_array to an array numxs by numys dimensions
     reshaped_intens = []
     for ith_intens in intens_array:
+        print(len(ith_intens))
+        print(num_xs)
+        print(num_ys)
         reshaped_intens.append(ith_intens.reshape(num_ys, num_xs))
 
     # Make heatmaps for all reshaped arrays, naming each by wavenumber
     wavenums = [wavenum for wavenum, _ in spectra[0].info]
     for wavenum, intens in zip(wavenums, reshaped_intens):
-        plt.imshow(intens, origin='lower', cmap='binary')
-        plt.savefig("{}.png".format(wavenum))
+        arr_max = intens.max()
+        norm_intens = np.array([each / arr_max for each in intens])
+        im = Image.fromarray(norm_intens)
+        im.save(str(wavenum) + ".tiff", "tiff")
+        #plt.imshow(intens, origin='lower', cmap='binary')
+        #plt.savefig("{}.png".format(wavenum))
 
 def main(path):
     file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
@@ -202,7 +253,7 @@ def main(path):
     spectra = []
     for each in file_list:
         spectra.append(SpectrumData.from_file(each))
-    # create_heatmap(spectra, 820, 985)
+    #create_heatmap(spectra, 957, 968)
     remap_image(spectra)
 
 if __name__ == "__main__":

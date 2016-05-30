@@ -2,6 +2,7 @@ from PySide import QtCore, QtGui
 import os,sys
 from bgsub import SpectrumData
 from matplotlib import pyplot as plt
+from matplotlib.widgets import Slider
 
 path = "/home/danielle/Documents/LMCE_one"
 
@@ -44,6 +45,8 @@ for spectrum in spectra:
     toolbar = NavigationToolbar(canvas, qfigWidget)
     plt = fig.add_subplot(111)
     plt.scatter(*zip(*spectrum.info))
+    #axvert = plt.axvline()
+    #sfreq = Slider(axvert, 'vertical', 0, 1000)
 
     # place plot components in a layout
     plotLayout = QtGui.QVBoxLayout()
