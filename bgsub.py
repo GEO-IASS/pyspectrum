@@ -1,12 +1,15 @@
 """
 TODO: Module documentation
 """
+from __future__ import print_function
 import csv
 import os
 import sys
 import re
+import bisect
 from operator import itemgetter, attrgetter
 from pprint import pprint
+from collections import OrderedDict
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -14,55 +17,65 @@ from PIL import Image
 
 DEFAULT_PATH = "/home/danielle/Downloads/Rename/Rename"
 
+
 class SpectrumCollection(object):
 
-    def __init__(self, row_data, x_to_y):
-
-        self.row_data = row_data
+    def __init__(self, spectra, x_to_y):
+        self.spectra = spectra
         self.x_to_y = x_to_y
+        self.num_xs = len(self.x_to_y.keys())
+        # Find number of ys
+        biggest = 0
+        for y_list in self.x_to_y.values():
+            biggest = len(y_list) if len(y_list) > biggest else biggest
+        self.num_ys = biggest
 
-        def get_spec_data(data: list):
+    @classmethod
+    def from_spectrum_data_list(cls, spectra):
+        """Creates a new SpectrumCollection object from a SpectrumData list"""
+        x_to_y = OrderedDict()
+        # Sort the spectra by Y, then by X (relative ordering is maintained)
+        spectra.sort(key=attrgetter("y"))
+        spectra.sort(key=attrgetter("x"))
+        # For all spectrum, build a map from xs to ys
+        for spectrum in spectra:
+            currx = spectrum.x
+            if currx not in x_to_y:
+                x_to_y[currx] = [spec.y for spec in spectra if spec.x == currx]
+        return SpectrumCollection(spectra, x_to_y)
 
-            spec_collect = {}
-            # list of spectrumdata objects
-            for spec in data:
-                spec_collect.update({(spec.x, spec.y) : spec})
+    def _xy_to_pixel(self, x, y):
+        """Converts x,y coordinate to pixel grid location"""
+        # Check if x and y are in our spectra
+        if x not in self.x_to_y:
+            raise ValueError
+        elif y not in self.x_to_y[x]:
+            raise ValueError
+        # Find absolute index of where x and y are in the spectra
+        x_coord = bisect.bisect_left(self.x_to_y.keys(), x)
+        y_coord = bisect.bisect_left(self.x_to_y[x], y)
+        return (x_coord, y_coord)
 
-            x_to_y = {}
-            y_list = []
-            indx = 0
-            for spectrum in data:
-                curr_x = data[indx].x
-                if curr_x == spectrum.x:
-                    y_list.append(spectrum.y)
-                    indx+=1
-                else:
-                    x_to_y.update({spectrum.x : y_list})
+    def get_img_array(self, wavenum):
+        """Constructs a numpy array containing the intesity at the wavenum"""
+        img_array = np.zeros((self.num_xs, self.num_ys))
+        # Iterate through the spectra and get the intensity value at wavenum
+        for spectrum in self.spectra:
+            i, j = self._xy_to_pixel(spectrum.x, spectrum.y)
+            img_array[i][j] = spectrum.get_intens(wavenum)
+        return np.flipud(np.rot90(img_array))
 
-            return SpectrumCollection(spec_collect, x_to_y)
-
-        def fill_array(SpectrumCollection):
-            biggest = 0
-            for x, y_list in x_to_y:
-                if len(y_list) > biggest:
-                    biggest = len(y_list)
-
-            img_array = np.zeros(biggest, len(x_to_y.keys()))
-
-            for i, (x, y_list) in enumerate(x_to_y.items()):
-                for j, y in enumerate(y_list):
-                    img_array[i][j] = SpectrumCollection.spec_collect[(x, y)].info[i]
 
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
 
-    def __init__(self, x: float, y: float, info: list((float, float))):
+    def __init__(self, x, y, info):
         self.x = x
         self.y = y
         self.info = np.array(info)
 
     @classmethod
-    def from_file(cls, filename: str, filter_negative=True):
+    def from_file(cls, filename, filter_negative=True):
         """
         Loads file from directory ** needs input to be a fully qualified file
         path.
@@ -77,9 +90,9 @@ class SpectrumData(object):
                 # Filter out negatives if flag is on
                 if not (filter_negative and float(row[0]) < 0):
                     data.append((float(row[0]), float(row[1])))
-        # Sort by X (increasing)
+        # Sort by wavenum (increasing)
         data.sort(key=itemgetter(0))
-        # Find bigX and bigY in the file name, append to SpectrumData object
+        # Find bigX and bigY in the file name, add to SpectrumData object
         matches = re.findall('[+-]?[XY]_.[0-9]+\.[0-9]+', filename)
         X = None
         Y = None
@@ -91,6 +104,15 @@ class SpectrumData(object):
 
         return SpectrumData(float(X), float(Y), data)
 
+    def get_intens(self, wavenum):
+        """Gets the intensity corresponding to the given wavenumber"""
+        # 'Flip' array so that we can get only the wavenumbers
+        wavenums = np.rot90(self.info)[1]
+        # Find index of requested wavenumber
+        indx = np.searchsorted(wavenums, wavenum)
+        # Return intensity at that indx
+        return self.info[indx][1]
+
     def __repr__(self):
         return "SpectrumData(X = {}, Y = {})".format(self.x, self.y)
 
@@ -101,7 +123,7 @@ class SpectrumData(object):
         if show:
             plt.show()
 
-    def trapezoidal_sum(self, w_num1: float, w_num2: float) -> float:
+    def trapezoidal_sum(self, w_num1, w_num2):
         """Calculates the area under the curve by trapezoidal method.
 
         Two adjacent points in the data set are used to create a trapezoid and
@@ -148,7 +170,7 @@ class SpectrumData(object):
         return total_area
 
 
-def bg_subtract(data: SpectrumData) -> SpectrumData:
+def bg_subtract(data):
     """Returns background subtracted data set"""
     # TODO: from the horizontal line slider
     for i in range(len(data.info)):
@@ -160,7 +182,7 @@ def bg_subtract(data: SpectrumData) -> SpectrumData:
     return SpectrumData(data.X, data.Y, [(x, y - min_y) for x, y in data.info])
 
 
-def create_heatmap(spectra: list, w_num1: int, w_num2: int):
+def create_heatmap(spectra, w_num1, w_num2):
 
     spectra.sort(key=attrgetter("y"))
     spectra.sort(key=attrgetter("x"))
@@ -176,7 +198,7 @@ def create_heatmap(spectra: list, w_num1: int, w_num2: int):
     plt.savefig("heat_map.png")
 
 
-def get_num_xys(spectra: list) -> (int, int):
+def get_num_xys(spectra):
     # Gets the number of Ys per X
     curr_x = spectra[0].x
     num_ys = 0
@@ -186,11 +208,11 @@ def get_num_xys(spectra: list) -> (int, int):
         else:
             num_ys = indx - 1
             break
-    #num_xs = int(spectra[0].x - spectra[-1].x)
+    # num_xs = int(spectra[0].x - spectra[-1].x)
     return (len(spectra) // num_ys, num_ys)
 
 
-def subtract_lower(data: np.array):
+def subtract_lower(data):
     # Get min & max points according to x (assuming data is already sorted)
     p0 = data[0]
     p1 = data[-1]
@@ -205,7 +227,7 @@ def subtract_lower(data: np.array):
 
     return total_area
 
-def remap_image(spectra: list):
+def remap_image(spectra):
     """
     Takes the ith intensity from each spectrum with a matching wavenumber.
     This becomes a list of i arrays, which will then be converted
@@ -223,7 +245,6 @@ def remap_image(spectra: list):
         for spectrum in spectra:
             sublist.append(spectrum.info[i][1])
         intens_array.append(sublist)
-
 
     # Get the dimensions of the heatmap (numxs, numys)
     intens_array = np.array(intens_array)
@@ -244,8 +265,9 @@ def remap_image(spectra: list):
         norm_intens = np.array([each / arr_max for each in intens])
         im = Image.fromarray(norm_intens)
         im.save(str(wavenum) + ".tiff", "tiff")
-        #plt.imshow(intens, origin='lower', cmap='binary')
-        #plt.savefig("{}.png".format(wavenum))
+        # plt.imshow(intens, origin='lower', cmap='binary')
+        # plt.savefig("{}.png".format(wavenum))
+
 
 def main(path):
     file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
@@ -253,8 +275,13 @@ def main(path):
     spectra = []
     for each in file_list:
         spectra.append(SpectrumData.from_file(each))
-    #create_heatmap(spectra, 957, 968)
-    remap_image(spectra)
+    collec = SpectrumCollection.from_spectrum_data_list(spectra)
+    # create_heatmap(spectra, 957, 968)
+    # remap_image(spectra)
+    wavenum = 4016.413574
+    img_array = collec.get_img_array(wavenum)
+    im = Image.fromarray(img_array)
+    im.save(str(wavenum) + ".tiff", "tiff")
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)
