@@ -14,14 +14,20 @@ from collections import OrderedDict
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
+from PySide import QtGui
 
-DEFAULT_PATH = "/home/danielle/Downloads/Rename/Rename"
+from mplgui import PlotDisplay
+from directory_dialog import DialogGUIBox
+
+DEFAULT_PATH = "/home/danielle/Documents/LMCE"
 
 
 class SpectrumCollection(object):
 
     def __init__(self, spectra, x_to_y):
+        #: List of SpectrumData objects
         self.spectra = spectra
+        #: Mapping of Xs to Ys for the speectra
         self.x_to_y = x_to_y
         self.num_xs = len(self.x_to_y.keys())
         # Find number of ys
@@ -52,7 +58,7 @@ class SpectrumCollection(object):
         elif y not in self.x_to_y[x]:
             raise ValueError
         # Find absolute index of where x and y are in the spectra
-        x_coord = bisect.bisect_left(self.x_to_y.keys(), x)
+        x_coord = bisect.bisect_left(list(self.x_to_y.keys()), x)
         y_coord = bisect.bisect_left(self.x_to_y[x], y)
         return (x_coord, y_coord)
 
@@ -65,6 +71,29 @@ class SpectrumCollection(object):
             img_array[i][j] = spectrum.get_intens(wavenum)
         return np.flipud(np.rot90(img_array))
 
+    def map_images(self):
+        """Constructs a greyscale image of intensity at each pixel, for each wavenum"""
+        wavenums = []
+        for spectrum in self.spectra:
+            wavenums = spectrum.info[1]
+        for wavenum in wavenums:
+            img_array = self.get_img_array(wavenum)
+            im = Image.fromarray(img_array)
+            im.save(str(wavenum) + ".tiff", "tiff")
+
+    def get_heatmap_array(self, wnum_1, wnum_2):
+        """Constructs a numpy array containing the intesity at the wavenum"""
+        img_array = np.zeros((self.num_xs, self.num_ys))
+        # Iterate through the spectra and get the intensity value at wavenum
+        for spectrum in self.spectra:
+            i, j = self._xy_to_pixel(spectrum.x, spectrum.y)
+            img_array[i][j] = spectrum.trapezoidal_sum(wnum_1, wnum_2)
+        return (np.rot90(img_array))
+
+    def gen_heatmap(self, wnum_1, wnum_2):
+        heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
+        plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='gist_heat')
+        plt.savefig("heat_map.png")
 
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
@@ -73,6 +102,8 @@ class SpectrumData(object):
         self.x = x
         self.y = y
         self.info = np.array(info)
+        self.info = np.rot90(self.info)
+        self.info_flipped = np.rot90(self.info, 3)
 
     @classmethod
     def from_file(cls, filename, filter_negative=True):
@@ -107,18 +138,18 @@ class SpectrumData(object):
     def get_intens(self, wavenum):
         """Gets the intensity corresponding to the given wavenumber"""
         # 'Flip' array so that we can get only the wavenumbers
-        wavenums = np.rot90(self.info)[1]
+        wavenums = self.info[1]
         # Find index of requested wavenumber
         indx = np.searchsorted(wavenums, wavenum)
         # Return intensity at that indx
-        return self.info[indx][1]
+        return self.info[0][indx]
 
     def __repr__(self):
         return "SpectrumData(X = {}, Y = {})".format(self.x, self.y)
 
     def plot_spectrum(self, show=False):
         """Creates x-y scatter plot of the spectrum data"""
-        plt.scatter(*zip(*self.info))
+        plt.scatter(*zip(*self.info_flipped))
         plt.savefig("{}_{}_plot.png".format(self.x, self.y))
         if show:
             plt.show()
@@ -133,20 +164,7 @@ class SpectrumData(object):
         returning total area.
         """
         # Get points within user inputted range
-        start_x = 0
-        for i in range(len(self.info)):
-            if self.info[i][0] > w_num1:
-                start_x = i
-                break
-        end_x = len(self.info)
-
-        for i in range(len(self.info) - 1, 0, -1):
-            if self.info[i][0] < w_num2:
-                end_x = i + 1
-                break
-        # Culled data is a memory view into our array
-        culled_data = self.info[start_x:end_x]
-
+        culled_data = [intens for wavenum, intens in self.info_flipped if wavenum > w_num1 and wavenum < w_num2]
         total_area = 0
         # Iterates over all points in data set
         for index in range(len(culled_data) - 1):
@@ -155,44 +173,37 @@ class SpectrumData(object):
             next_point = culled_data[index + 1]
 
             # Change in x between the points
-            dx = next_point[0] - culled_data[index][0]
-            r_y = culled_data[index][1]
-            t_y = next_point[1] - r_y
+            dx = next_point - culled_data[index]
+            r_y = culled_data[index]
+            t_y = next_point - r_y
 
             # Area of current trapezoid
             area = (r_y * dx) + (0.5 * dx * t_y)
             total_area += area
 
-        # Subtract area under horizontal line drawn between w_num1 & w_num2
-        under_area = subtract_lower(culled_data)
-        total_area -= under_area
+        # Subtract area under horizontal line drawn between w_num1 & w_num2, if there is one
+        if len(culled_data) > 1:
+            under_area = subtract_lower(culled_data)
+            total_area -= under_area
+        else:
+            total_area = culled_data[0]
 
         return total_area
 
-
-def bg_subtract(data):
-    """Returns background subtracted data set"""
-    # TODO: from the horizontal line slider
-    for i in range(len(data.info)):
-        y_val = data.info[i][1]
-        for j in range(i + 1, len(data.info)):
-            if y_val == data.info[j][1]:
-                return [(x, y - y_val) for x, y in data.info]
-    min_y = min(data.info, key=lambda tup: tup[1])[1]
-    return SpectrumData(data.X, data.Y, [(x, y - min_y) for x, y in data.info])
-
+    def plot_spec(self):
+        """Creates x-y scatter plot of the spectrum data"""
+        plt.scatter(*zip(*self.info_flipped))
 
 def create_heatmap(spectra, w_num1, w_num2):
 
-    spectra.sort(key=attrgetter("y"))
-    spectra.sort(key=attrgetter("x"))
-    pprint(spectra)
     num_xs, num_ys = get_num_xys(spectra)
+
     # Calculate all trapezoidal sums for every point
     transform = np.array([s.trapezoidal_sum(w_num1, w_num2) for s in spectra])
+
     # Turns 1D transform array into 2D ndarray
     transform = transform.reshape((num_ys, num_xs))
-    print(transform)
+
     # Plot
     plt.imshow(transform, interpolation='bilinear', origin='lower', cmap='Reds')
     plt.savefig("heat_map.png")
@@ -217,8 +228,8 @@ def subtract_lower(data):
     p0 = data[0]
     p1 = data[-1]
 
-    horiz = abs(p1[1] - p0[1])
-    vert = abs(p1[0] - p0[0])
+    horiz = abs(p1 - p0)
+    vert = abs(p1 - p0)
 
     area_tri = 0.5 * horiz * vert
     area_rec = horiz * vert
@@ -268,8 +279,7 @@ def remap_image(spectra):
         # plt.imshow(intens, origin='lower', cmap='binary')
         # plt.savefig("{}.png".format(wavenum))
 
-
-def main(path):
+def build_plot_display(path):
     file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
     os.chdir(path)
     spectra = []
@@ -278,10 +288,27 @@ def main(path):
     collec = SpectrumCollection.from_spectrum_data_list(spectra)
     # create_heatmap(spectra, 957, 968)
     # remap_image(spectra)
-    wavenum = 4016.413574
-    img_array = collec.get_img_array(wavenum)
-    im = Image.fromarray(img_array)
-    im.save(str(wavenum) + ".tiff", "tiff")
+    #wavenum = 4016.413574
+    #img_array = collec.get_img_array(wavenum)
+    #im = Image.fromarray(img_array)
+    #im.save(str(wavenum) + ".tiff", "tiff")
+    # collec.map_images()
+    # collec.gen_heatmap(926.365601, 970.27771)
+
+    # Create the window with the collection, show and run
+    window = PlotDisplay(collec)
+    window.show()
+
+def main(path):
+    # Must construct application first
+    app = QtGui.QApplication(sys.argv)
+
+    # Read user directory using dialog, which starts the GUI chain
+    dialog = DialogGUIBox(build_plot_display)
+    dialog.show()
+
+    sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)

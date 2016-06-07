@@ -3,6 +3,11 @@ import os,sys
 from bgsub import SpectrumData
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Slider
+import numpy as np
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+
 
 path = "/home/danielle/Documents/LMCE_one"
 
@@ -11,11 +16,6 @@ os.chdir(path)
 spectra = []
 for each in file_list:
     spectra.append(SpectrumData.from_file(each))
-
-#import matplotlib
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
 
 qapp = QtGui.QApplication(sys.argv)
 qwidget = QtGui.QWidget()
@@ -44,9 +44,7 @@ for spectrum in spectra:
     canvas.setParent(qfigWidget)
     toolbar = NavigationToolbar(canvas, qfigWidget)
     plt = fig.add_subplot(111)
-    plt.scatter(*zip(*spectrum.info))
-    #axvert = plt.axvline()
-    #sfreq = Slider(axvert, 'vertical', 0, 1000)
+    plt.scatter(*zip(*spectrum.info_flipped))
 
     # place plot components in a layout
     plotLayout = QtGui.QVBoxLayout()

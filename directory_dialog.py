@@ -1,11 +1,18 @@
 import sys
 from PySide import QtGui
-import bgsub
+import sys, os
+
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib.pyplot as plt
 
 class DialogGUIBox(QtGui.QWidget):
 
-    def __init__(self):
+    def __init__(self, build_plot_display):
         super(DialogGUIBox, self).__init__()
+
+        # Callback for bgsub plotting function
+        self.build_plot_display = build_plot_display
 
         QtGui.QToolTip.setFont(QtGui.QFont('SansSerif', 10))
 
@@ -53,12 +60,10 @@ class DialogGUIBox(QtGui.QWidget):
         self.selected_directory = str(selected_directory)
 
     def run_bgsub(self):
-        bgsub.main(self.selected_directory)
-
-    def close(self):
-        sys.exit(0)
+        self.close()
+        self.build_plot_display(self.selected_directory)
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
-    ex = DialogGUIBox()
+    ex = DialogGUIBox(None)
     sys.exit(app.exec_())
