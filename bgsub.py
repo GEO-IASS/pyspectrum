@@ -297,6 +297,7 @@ def build_plot_display(path):
 
     # Create the window with the collection, show and run
     window = PlotDisplay(collec)
+    window.setWindowTitle("PySpectrum Analyzer")
     window.show()
 
 def main(path):
