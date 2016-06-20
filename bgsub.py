@@ -92,7 +92,8 @@ class SpectrumCollection(object):
 
     def gen_heatmap(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
-        plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='gist_heat')
+        plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
+        plt.colorbar()
         plt.savefig("heat_map.png")
 
 class SpectrumData(object):
@@ -294,11 +295,14 @@ def build_plot_display(path):
     #im.save(str(wavenum) + ".tiff", "tiff")
     # collec.map_images()
     # collec.gen_heatmap(926.365601, 970.27771)
+    #collec.gen_heatmap(2907.666992, 3024.534180)
+    # collec.gen_heatmap(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run
-    window = PlotDisplay(collec)
+    window = PlotDisplay(collec, collec.gen_heatmap)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
+
 
 def main(path):
     # Must construct application first

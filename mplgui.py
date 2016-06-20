@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class PlotDisplay(QtGui.QDialog):
 
-    def __init__(self, spectrum_collec, parent=None):
+    def __init__(self, spectrum_collec, gen_heatmap, parent=None):
 
         super(PlotDisplay, self).__init__(parent)
 
@@ -17,6 +17,9 @@ class PlotDisplay(QtGui.QDialog):
 
         # a figure instance to plot on
         self.figure = plt.figure()
+
+        # callback to gen heatmap
+        self.gen_heatmap = gen_heatmap
 
         self.ax = self.figure.add_subplot(111)
 
@@ -57,21 +60,36 @@ class PlotDisplay(QtGui.QDialog):
         splitter.addWidget(self.label_y)
         splitter.addWidget(self.drop_down_y)
 
-        # add slider
+        # add left slider
         self.sld = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.sld.setMinimum(0)
         self.wavenums = self.get_wavenums()
-        self.sld.setMaximum(len(self.wavenums)-1)
+        self.sld.setMaximum(len(self.wavenums) - 1)
         self.sld.setTickInterval(1)
-        curr_sld = self.sld.sliderPosition()
+        self.curr_sld = self.sld.sliderPosition()
         self.sld.valueChanged.connect(self.sld_change)
 
+        #TODO
+        # add right slider
+        self.sld_2 = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.sld_2.setMinimum(0)
+        self.wavenums = self.get_wavenums()
+        self.sld_2.setMaximum(len(self.wavenums)-1)
+        self.sld_2.setTickInterval(1)
+        self.curr_sld_2 = self.sld_2.sliderPosition()
+        self.sld_2.valueChanged.connect(self.sld_change)
+
         # add line
-        self.vert_line = self.ax.axvline(x = float(self.wavenums[curr_sld]))
+        self.vert_line = None
+        self.vert_line_2 = None
 
         # text edit to display wavenumber
         self.textedit = QtGui.QLabel()
         self.textedit.setStyleSheet('background-color: white')
+
+        #TODO
+        self.textedit_2 = QtGui.QLabel()
+        self.textedit_2.setStyleSheet('background-color: white')
 
         # horizontal layout to hold slider and text edit box
         hslider_text = QtGui.QHBoxLayout()
@@ -86,13 +104,31 @@ class PlotDisplay(QtGui.QDialog):
         gbox.setPalette(qpalette)
         #gbox.setStyleSheet("QGroupBox {border-radius: 9px; border:1px solid rgb(0, 0, 0); margin-top: 0.5em}")
 
+        #TODO
+        hslider_text_2 = QtGui.QHBoxLayout()
+        hslider_text_2.addWidget(self.sld_2, 2)
+        hslider_text_2.addWidget(self.textedit_2, 1)
+
+        # group box to group elements together
+        gbox_2 = QtGui.QGroupBox("Peak Selection")
+        gbox_2.setLayout(hslider_text_2)
+        qpalette = QtGui.QPalette()
+        qpalette.setColor(QtGui.QPalette.Dark, QtCore.Qt.white)
+        gbox.setPalette(qpalette)
+
+        # add button for heat map generation
+        self.hm_button = QtGui.QPushButton('Generate Heatmap')
+        self.hm_button.clicked.connect(self.hm_make)
+
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
+        layout.addWidget(self.hm_button)
         layout.addWidget(splitter)
         layout.addWidget(gbox)
+        layout.addWidget(gbox_2)
         self.setLayout(layout)
 
     def plot(self):
@@ -113,6 +149,12 @@ class PlotDisplay(QtGui.QDialog):
         for i, spectrum in enumerate(spectra_list):
             if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
                 self.ax.scatter(*zip(*self.my_collec.spectra[i].info_flipped))
+
+        # add left vert line
+        self.vert_line = self.ax.axvline(x = 0)
+
+        # add right vert line
+        self.vert_line_2 = self.ax.axvline(x = 0)
 
         # refresh canvas
         self.canvas.draw()
@@ -135,15 +177,34 @@ class PlotDisplay(QtGui.QDialog):
         return wavenums
 
     def sld_change(self):
+
+        self.vert_line.remove()
+        self.vert_line_2.remove()
+
         curr_pos = self.sld.sliderPosition()
         curr_wavenum = self.wavenums[curr_pos]
 
+        curr_pos_2 = self.sld_2.sliderPosition()
+        curr_wavenum_2 = self.wavenums[curr_pos_2]
+
         self.textedit.setText(str(curr_wavenum))
+        self.textedit_2.setText(str(curr_wavenum_2))
 
-        self.ax.lines.remove(self.vert_line)
         self.vert_line = self.ax.axvline(x = curr_wavenum)
+        self.vert_line_2 = self.ax.axvline(x = curr_wavenum_2)
 
-        self.canvas.blit()
+        self.canvas.draw()
+
+    def hm_make(self):
+        curr_pos = self.sld.sliderPosition()
+        curr_wavenum = self.wavenums[curr_pos]
+
+        curr_pos_2 = self.sld_2.sliderPosition()
+        curr_wavenum_2 = self.wavenums[curr_pos_2]
+
+        self.gen_heatmap(curr_wavenum, curr_wavenum_2)
+
+
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
