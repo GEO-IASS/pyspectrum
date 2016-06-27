@@ -19,7 +19,7 @@ from PySide import QtGui
 from mplgui import PlotDisplay
 from directory_dialog import DialogGUIBox
 
-DEFAULT_PATH = "/home/danielle/Documents/LMCE"
+DEFAULT_PATH = "/home/danielle/Documents/LMCE_one"
 
 
 class SpectrumCollection(object):
@@ -78,8 +78,11 @@ class SpectrumCollection(object):
             wavenums = spectrum.info[1]
         for wavenum in wavenums:
             img_array = self.get_img_array(wavenum)
-            im = Image.fromarray(img_array)
-            im.save(str(wavenum) + ".tiff", "tiff")
+            #im = Image.fromarray(img_array)
+            #im.save(str(wavenum) + ".tiff", "tiff")
+            plt.imshow(img_array, cmap="gray")
+            plt.savefig(str(wavenum) + ".tiff", bbox_inches='tight', dpi='figure')
+            plt.cla()
 
     def get_heatmap_array(self, wnum_1, wnum_2):
         """Constructs a numpy array containing the intesity at the wavenum"""
@@ -293,13 +296,13 @@ def build_plot_display(path):
     #img_array = collec.get_img_array(wavenum)
     #im = Image.fromarray(img_array)
     #im.save(str(wavenum) + ".tiff", "tiff")
-    # collec.map_images()
+    collec.map_images()
     # collec.gen_heatmap(926.365601, 970.27771)
     #collec.gen_heatmap(2907.666992, 3024.534180)
     # collec.gen_heatmap(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run
-    window = PlotDisplay(collec, collec.gen_heatmap)
+    window = PlotDisplay(collec, collec.gen_heatmap, collec.map_images)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
 

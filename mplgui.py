@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class PlotDisplay(QtGui.QDialog):
 
-    def __init__(self, spectrum_collec, gen_heatmap, parent=None):
+    def __init__(self, spectrum_collec, gen_heatmap, map_images, parent=None):
 
         super(PlotDisplay, self).__init__(parent)
 
@@ -20,6 +20,12 @@ class PlotDisplay(QtGui.QDialog):
 
         # callback to gen heatmap
         self.gen_heatmap = gen_heatmap
+
+        self.map_images = map_images
+
+        self.listview = QtGui.QListView()
+
+        self.scroll_img = QtGui.QScrollArea()
 
         self.ax = self.figure.add_subplot(111)
 
@@ -120,12 +126,16 @@ class PlotDisplay(QtGui.QDialog):
         self.hm_button = QtGui.QPushButton('Generate Heatmap')
         self.hm_button.clicked.connect(self.hm_make)
 
+        self.map_img = QtGui.QPushButton('Map Images')
+        self.map_img.clicked.connect(self.img_make)
+
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
         layout.addWidget(self.hm_button)
+        layout.addWidget(self.map_img)
         layout.addWidget(splitter)
         layout.addWidget(gbox)
         layout.addWidget(gbox_2)
@@ -204,6 +214,8 @@ class PlotDisplay(QtGui.QDialog):
 
         self.gen_heatmap(curr_wavenum, curr_wavenum_2)
 
+    def img_make(self):
+        pass
 
 
 if __name__ == '__main__':
