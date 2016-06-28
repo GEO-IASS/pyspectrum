@@ -5,8 +5,9 @@ import csv
 # if next x and y are different, start new txt file and put wavenum & intens there
 # repeat
 from bgsub import SpectrumData, SpectrumCollection
+from PIL import Image
 
-def from_file(filename, filter_negative=True):
+def from_line_file(filename, filter_negative=True):
     """
     Loads file from directory ** needs input to be a fully qualified file
     path.
@@ -42,5 +43,5 @@ def from_file(filename, filter_negative=True):
     return SpectrumCollection.from_spectrum_data_list(spectra)
 
 path = "/home/danielle/Documents/Raman Linescan/TP,U,L,1_linescan.txt"
-collec = from_file(path)
-collec.map_images()
+collec = from_line_file(path)
+collec.gen_heatmap_linescan(2907.666992, 3024.534180)

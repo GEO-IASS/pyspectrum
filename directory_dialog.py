@@ -22,6 +22,11 @@ class DialogGUIBox(QtGui.QWidget):
         lbBroswer = QtGui.QLabel('Directory:', self)
         lbBroswer.move(15, 40)
 
+        self.check_line = QtGui.QRadioButton("Line Scan", self)
+        self.check_area = QtGui.QRadioButton("Area Scan", self)
+        self.check_line.move(15, 90)
+        self.check_area.move(110, 90)
+
         self.etBrowser = QtGui.QLineEdit('', self)
         self.etBrowser.resize(210,20)
         self.etBrowser.move(90, 37)
@@ -60,8 +65,11 @@ class DialogGUIBox(QtGui.QWidget):
         self.selected_directory = str(selected_directory)
 
     def run_bgsub(self):
+        linescan = False
+        if self.check_line.isChecked():
+            linescan = True
         self.close()
-        self.build_plot_display(self.selected_directory)
+        self.build_plot_display(self.selected_directory, linescan)
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)

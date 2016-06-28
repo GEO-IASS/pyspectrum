@@ -22,13 +22,9 @@ class PlotDisplay(QtGui.QDialog):
         # callback to gen heatmap
         self.gen_heatmap = gen_heatmap
 
+        # initializations for image stack creation
         self.path = path
-
         self.stack = ImageStack(self.my_collec, self.path)
-
-        self.listview = QtGui.QListView()
-
-        self.scroll_img = QtGui.QScrollArea()
 
         self.ax = self.figure.add_subplot(111)
 
@@ -41,7 +37,7 @@ class PlotDisplay(QtGui.QDialog):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         # a button connected to `plot` method
-        self.button = QtGui.QPushButton('Plot')
+        self.button = QtGui.QPushButton('Plot Spectrum')
         self.button.clicked.connect(self.plot)
 
         # add a combobox for all X values
@@ -106,7 +102,7 @@ class PlotDisplay(QtGui.QDialog):
         hslider_text.addWidget(self.textedit, 1)
 
         # group box to group elements together
-        gbox = QtGui.QGroupBox("Peak Selection")
+        gbox = QtGui.QGroupBox("Left")
         gbox.setLayout(hslider_text)
         qpalette = QtGui.QPalette()
         qpalette.setColor(QtGui.QPalette.Dark, QtCore.Qt.white)
@@ -119,17 +115,24 @@ class PlotDisplay(QtGui.QDialog):
         hslider_text_2.addWidget(self.textedit_2, 1)
 
         # group box to group elements together
-        gbox_2 = QtGui.QGroupBox("Peak Selection")
+        gbox_2 = QtGui.QGroupBox("Right")
         gbox_2.setLayout(hslider_text_2)
         qpalette = QtGui.QPalette()
         qpalette.setColor(QtGui.QPalette.Dark, QtCore.Qt.white)
         gbox.setPalette(qpalette)
 
+        slider_layout = QtGui.QVBoxLayout()
+        slider_layout.addWidget(gbox)
+        slider_layout.addWidget(gbox_2)
+
+        slider_group = QtGui.QGroupBox("Peak Selection")
+        slider_group.setLayout(slider_layout)
+
         # add button for heat map generation
         self.hm_button = QtGui.QPushButton('Generate Heatmap')
         self.hm_button.clicked.connect(self.hm_make)
 
-        self.map_img = QtGui.QPushButton('Map Images')
+        self.map_img = QtGui.QPushButton('View Image Stack')
         self.map_img.clicked.connect(self.img_stack)
 
         # set the layout
@@ -137,11 +140,12 @@ class PlotDisplay(QtGui.QDialog):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
+        layout.addWidget(splitter)
+        #layout.addWidget(gbox)
+        #layout.addWidget(gbox_2)
+        layout.addWidget(slider_group)
         layout.addWidget(self.hm_button)
         layout.addWidget(self.map_img)
-        layout.addWidget(splitter)
-        layout.addWidget(gbox)
-        layout.addWidget(gbox_2)
         self.setLayout(layout)
 
     def plot(self):
@@ -219,8 +223,6 @@ class PlotDisplay(QtGui.QDialog):
 
     def img_stack(self):
         self.stack.show()
-
-
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)

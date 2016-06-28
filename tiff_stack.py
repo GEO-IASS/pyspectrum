@@ -30,8 +30,9 @@ class ImageStack(QtGui.QWidget):
         self.label = QtGui.QLabel()
 
         # set label to show first image
-        self.my_image.load(path + '/' + self.image_files[0])
-        self.label.setPixmap(QtGui.QPixmap.fromImage(self.my_image))
+        if len(self.image_files) > 0:
+            self.my_image.load(path + '/' + self.image_files[0])
+            self.label.setPixmap(QtGui.QPixmap.fromImage(self.my_image))
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.label)

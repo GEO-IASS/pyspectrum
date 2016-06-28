@@ -99,6 +99,25 @@ class SpectrumCollection(object):
         plt.colorbar()
         plt.savefig("heat_map.png")
 
+    def gen_heatmap_linescan(self, wnum_1, wnum_2):
+        heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
+        im = Image.fromarray(heatmap_array)
+        im.save("heatmap.tiff", "tiff")
+        #plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
+        #plt.colorbar()
+        #plt.savefig("heat_map.png")
+
+    def map_linescan(self):
+        """Constructs a greyscale image of intensity at each pixel, for each wavenum (LINESCAN specific
+        uses PIL instead of matplotlib)"""
+        wavenums = []
+        for spectrum in self.spectra:
+            wavenums = spectrum.info[1]
+        for wavenum in wavenums:
+            img_array = self.get_img_array(wavenum)
+            im = Image.fromarray(img_array)
+            im.save(str(wavenum) + ".tiff", "tiff")
+
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
 
@@ -198,35 +217,6 @@ class SpectrumData(object):
         """Creates x-y scatter plot of the spectrum data"""
         plt.scatter(*zip(*self.info_flipped))
 
-def create_heatmap(spectra, w_num1, w_num2):
-
-    num_xs, num_ys = get_num_xys(spectra)
-
-    # Calculate all trapezoidal sums for every point
-    transform = np.array([s.trapezoidal_sum(w_num1, w_num2) for s in spectra])
-
-    # Turns 1D transform array into 2D ndarray
-    transform = transform.reshape((num_ys, num_xs))
-
-    # Plot
-    plt.imshow(transform, interpolation='bilinear', origin='lower', cmap='Reds')
-    plt.savefig("heat_map.png")
-
-
-def get_num_xys(spectra):
-    # Gets the number of Ys per X
-    curr_x = spectra[0].x
-    num_ys = 0
-    for indx, spectrum in enumerate(spectra):
-        if curr_x == spectrum.x:
-            continue
-        else:
-            num_ys = indx - 1
-            break
-    # num_xs = int(spectra[0].x - spectra[-1].x)
-    return (len(spectra) // num_ys, num_ys)
-
-
 def subtract_lower(data):
     # Get min & max points according to x (assuming data is already sorted)
     p0 = data[0]
@@ -242,54 +232,56 @@ def subtract_lower(data):
 
     return total_area
 
-def remap_image(spectra):
+def from_line_file(filename, filter_negative=True):
     """
-    Takes the ith intensity from each spectrum with a matching wavenumber.
-    This becomes a list of i arrays, which will then be converted
-    to an intensity heatmap.
+    Loads file from directory ** needs input to be a fully qualified file
+    path.
+    Returns a new list of tuples (x,y) containing points, where
+    x = wavenums and y = intensities.
     """
-
-    # Initialize the list
-    intens_array = []
-
-    # Iterate through each SpectrumData object in spectra list,
-    # getting the ith itensity for each object and putting it in a sublist
-    # put this sublist into intens_array
-    for i in range(len(spectra[0].info)):
-        sublist = []
-        for spectrum in spectra:
-            sublist.append(spectrum.info[i][1])
-        intens_array.append(sublist)
-
-    # Get the dimensions of the heatmap (numxs, numys)
-    intens_array = np.array(intens_array)
-    num_xs, num_ys = get_num_xys(spectra)
-
-    # Reshape the lists in intens_array to an array numxs by numys dimensions
-    reshaped_intens = []
-    for ith_intens in intens_array:
-        print(len(ith_intens))
-        print(num_xs)
-        print(num_ys)
-        reshaped_intens.append(ith_intens.reshape(num_ys, num_xs))
-
-    # Make heatmaps for all reshaped arrays, naming each by wavenumber
-    wavenums = [wavenum for wavenum, _ in spectra[0].info]
-    for wavenum, intens in zip(wavenums, reshaped_intens):
-        arr_max = intens.max()
-        norm_intens = np.array([each / arr_max for each in intens])
-        im = Image.fromarray(norm_intens)
-        im.save(str(wavenum) + ".tiff", "tiff")
-        # plt.imshow(intens, origin='lower', cmap='binary')
-        # plt.savefig("{}.png".format(wavenum))
-
-def build_plot_display(path):
-    file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
-    os.chdir(path)
     spectra = []
-    for each in file_list:
-        spectra.append(SpectrumData.from_file(each))
-    collec = SpectrumCollection.from_spectrum_data_list(spectra)
+    # Read in files row by row
+    with open(filename, 'r') as csvfile:
+        numreader = csv.reader(csvfile, delimiter='\t')
+        data = []
+        last_seen_xy = None
+        for row in numreader:
+            # First row - just use the first X/Y we see
+            if last_seen_xy is None:
+                last_seen_xy = (float(row[0]), float(row[1]))
+            else:
+                # Check if current row X/Y is the same as the last one we saw
+                new_xy = (float(row[0]), float(row[1]))
+                # If they are different, make a data object out of the data we've collected so far
+                if last_seen_xy[0] != new_xy[0] or last_seen_xy[1] != new_xy[1]:
+                    data_obj = SpectrumData(last_seen_xy[0], last_seen_xy[1], data)
+                    spectra.append(data_obj)
+                    last_seen_xy = new_xy
+                    data = []
+            if not (filter_negative and float(row[2]) < 0):
+                data.append((float(row[2]), float(row[3])))
+    # Once file ends, make a SpectrumData object with remaining data
+    if len(data) > 0:
+        spectra.append(SpectrumData(last_seen_xy[0], last_seen_xy[1], data))
+    print(spectra)
+    # Use this method which builds the X->Y mapping for us into the SpectrumCollection object
+    return SpectrumCollection.from_spectrum_data_list(spectra)
+
+def build_plot_display(path, linescan=False):
+    if linescan==True:
+        file_list = [f for f in os.listdir(path) if f.endswith(".txt")]
+        os.chdir(path)
+        collec = from_line_file(path + "/"  + str(file_list[0]))
+        heatmap = collec.gen_heatmap_linescan
+    else:
+        file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
+        os.chdir(path)
+        spectra = []
+        for each in file_list:
+            spectra.append(SpectrumData.from_file(each))
+        collec = SpectrumCollection.from_spectrum_data_list(spectra)
+        heatmap = collec.gen_heatmap
+
     # create_heatmap(spectra, 957, 968)
     # remap_image(spectra)
     #wavenum = 4016.413574
@@ -302,7 +294,7 @@ def build_plot_display(path):
     # collec.gen_heatmap(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run
-    window = PlotDisplay(collec, collec.gen_heatmap, path)
+    window = PlotDisplay(collec, heatmap, path)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
 
