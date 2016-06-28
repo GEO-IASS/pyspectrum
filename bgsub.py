@@ -296,13 +296,13 @@ def build_plot_display(path):
     #img_array = collec.get_img_array(wavenum)
     #im = Image.fromarray(img_array)
     #im.save(str(wavenum) + ".tiff", "tiff")
-    collec.map_images()
+    #collec.map_images()
     # collec.gen_heatmap(926.365601, 970.27771)
     #collec.gen_heatmap(2907.666992, 3024.534180)
     # collec.gen_heatmap(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run
-    window = PlotDisplay(collec, collec.gen_heatmap, collec.map_images)
+    window = PlotDisplay(collec, collec.gen_heatmap, path)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
 

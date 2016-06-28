@@ -4,11 +4,12 @@ from PySide import QtGui, QtCore
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
+from tiff_stack import ImageStack
 
 
 class PlotDisplay(QtGui.QDialog):
 
-    def __init__(self, spectrum_collec, gen_heatmap, map_images, parent=None):
+    def __init__(self, spectrum_collec, gen_heatmap, path, parent=None):
 
         super(PlotDisplay, self).__init__(parent)
 
@@ -21,7 +22,9 @@ class PlotDisplay(QtGui.QDialog):
         # callback to gen heatmap
         self.gen_heatmap = gen_heatmap
 
-        self.map_images = map_images
+        self.path = path
+
+        self.stack = ImageStack(self.my_collec, self.path)
 
         self.listview = QtGui.QListView()
 
@@ -127,7 +130,7 @@ class PlotDisplay(QtGui.QDialog):
         self.hm_button.clicked.connect(self.hm_make)
 
         self.map_img = QtGui.QPushButton('Map Images')
-        self.map_img.clicked.connect(self.img_make)
+        self.map_img.clicked.connect(self.img_stack)
 
         # set the layout
         layout = QtGui.QVBoxLayout()
@@ -214,14 +217,15 @@ class PlotDisplay(QtGui.QDialog):
 
         self.gen_heatmap(curr_wavenum, curr_wavenum_2)
 
-    def img_make(self):
-        pass
+    def img_stack(self):
+        self.stack.show()
+
 
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
 
-    main = PlotDisplay(None)
+    main = PlotDisplay(None, None, None)
     main.show()
 
     sys.exit(app.exec_())

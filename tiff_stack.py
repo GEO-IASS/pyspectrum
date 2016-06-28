@@ -1,20 +1,17 @@
 
 from PySide import QtGui, QtCore
-import os, sys
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from bgsub import SpectrumCollection
-from bgsub import SpectrumData
+import os
 
 path = '/home/danielle/Documents/LMCE/'
 
 class ImageStack(QtGui.QWidget):
-    def __init__(self, spectrum_collec, parent=None):
+    def __init__(self, spectrum_collec, path, parent=None):
         QtGui.QWidget.__init__(self, parent)
+
+        self.path = path
 
         self.image_files = [f for f in sorted(os.listdir(path)) if f.endswith(".tiff")]
         self.image_files = self.get_float()
-        print(self.image_files)
 
         self.button = QtGui.QPushButton('Images')
         self.button.clicked.connect(self.show_images)
@@ -45,7 +42,7 @@ class ImageStack(QtGui.QWidget):
     def show_images(self):
         curr_pos = self.slider.sliderPosition()
         curr_img = self.image_files[curr_pos]
-        self.my_image.load(path + '/' + curr_img)
+        self.my_image.load(self.path + '/' + curr_img)
         self.label.setPixmap(QtGui.QPixmap.fromImage(self.my_image))
 
     def get_float(self):
@@ -56,6 +53,7 @@ class ImageStack(QtGui.QWidget):
         sorted_img_files.sort(key=float)
         return sorted_img_files
 
+"""
 file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
 os.chdir(path)
 spectra = []
@@ -67,3 +65,5 @@ app = QtGui.QApplication(sys.argv)
 main = ImageStack(None)
 main.show()
 sys.exit(app.exec_())
+
+"""
