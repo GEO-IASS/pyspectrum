@@ -1,6 +1,7 @@
 import sys, os
 from PySide import QtGui, QtCore
-
+import numpy as np
+from scipy.spatial import ConvexHull
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
@@ -21,6 +22,8 @@ class PlotDisplay(QtGui.QDialog):
 
         # callback to gen heatmap
         self.gen_heatmap = gen_heatmap
+
+        #self.lin_reg = lin_reg
 
         # initializations for image stack creation
         self.path = path
@@ -135,6 +138,9 @@ class PlotDisplay(QtGui.QDialog):
         self.map_img = QtGui.QPushButton('View Image Stack')
         self.map_img.clicked.connect(self.img_stack)
 
+        self.bg_test = QtGui.QPushButton('BG Test')
+        self.bg_test.clicked.connect(self.rb_test)
+
         # set the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -146,6 +152,7 @@ class PlotDisplay(QtGui.QDialog):
         layout.addWidget(slider_group)
         layout.addWidget(self.hm_button)
         layout.addWidget(self.map_img)
+        layout.addWidget(self.bg_test)
         self.setLayout(layout)
 
     def plot(self):
@@ -162,7 +169,6 @@ class PlotDisplay(QtGui.QDialog):
 
         # plot data
         spectra_list = self.my_collec.spectra
-        print(spectra_list)
         for i, spectrum in enumerate(spectra_list):
             if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
                 self.ax.scatter(*zip(*self.my_collec.spectra[i].info_flipped))
@@ -223,6 +229,89 @@ class PlotDisplay(QtGui.QDialog):
 
     def img_stack(self):
         self.stack.show()
+
+    def bg_sub_test(self):
+
+        curr_pos = self.sld.sliderPosition()
+        curr_wavenum = self.wavenums[curr_pos]
+
+        curr_pos_2 = self.sld_2.sliderPosition()
+        curr_wavenum_2 = self.wavenums[curr_pos_2]
+
+        curr_x = self.drop_down_x.itemText(self.drop_down_x.currentIndex())
+        curr_y = self.drop_down_y.itemText(self.drop_down_y.currentIndex())
+
+        spectra_list = self.my_collec.spectra
+        for i, spectrum in enumerate(spectra_list):
+            if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
+
+                intens = self.my_collec.spectra[i].info[0]
+
+                wavenums = self.my_collec.spectra[i].info[1]
+
+                btwn_wavenums = []
+                btwn_intens = []
+
+                for i, wavenum in enumerate(wavenums):
+                    if wavenum <= curr_wavenum_2 and wavenum >= curr_wavenum:
+                        btwn_wavenums.append(wavenum)
+                        btwn_intens.append(intens[i])
+
+                new_y_list = []
+
+                slope, intercept = self.lin_reg(btwn_wavenums, btwn_intens)
+
+                for i, y in enumerate(intens):
+                    fit_y = slope * wavenums[i] + intercept
+                    y -= fit_y
+                    if y < 0:
+                        y = 0
+                    new_y_list.append(y)
+
+                print(len(wavenums), len(new_y_list))
+
+                new_plot = np.column_stack((wavenums, new_y_list))
+                self.ax.scatter(*zip(*new_plot))
+
+                self.canvas.draw()
+
+    def rb_test(self):
+        # get data from combo box
+        curr_x = self.drop_down_x.itemText(self.drop_down_x.currentIndex())
+        curr_y = self.drop_down_y.itemText(self.drop_down_y.currentIndex())
+
+        # get vertex points
+        curr_spec = None
+        curr_spec_plt = None
+        spectra_list = self.my_collec.spectra
+        for i, spectrum in enumerate(spectra_list):
+            if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
+                curr_spec_plt = self.my_collec.spectra[i].info_flipped
+                curr_spec = self.my_collec.spectra[i]
+
+        x = curr_spec.info[1]
+        y = curr_spec.info[0]
+
+        zipped = np.column_stack((x, y))
+
+        v = ConvexHull(zipped).vertices
+
+        v = np.roll(v, -v.argmin())
+
+        v = v[:v.argmax()]
+
+        bsln = np.interp(x, x[v], y[v])
+
+        new_y = []
+        for i, point in enumerate(y):
+            point -= bsln[i]
+            new_y.append(point)
+
+        x_y = np.column_stack((x, new_y))
+
+        self.ax.scatter(*zip(*x_y))
+
+        self.canvas.draw()
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)

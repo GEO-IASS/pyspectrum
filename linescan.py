@@ -38,7 +38,6 @@ def from_line_file(filename, filter_negative=True):
     # Once file ends, make a SpectrumData object with remaining data
     if len(data) > 0:
         spectra.append(SpectrumData(last_seen_xy[0], last_seen_xy[1], data))
-    print(spectra)
     # Use this method which builds the X->Y mapping for us into the SpectrumCollection object
     return SpectrumCollection.from_spectrum_data_list(spectra)
 

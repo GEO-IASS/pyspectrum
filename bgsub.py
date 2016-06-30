@@ -15,6 +15,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from PySide import QtGui
+from scipy import stats
 
 from mplgui import PlotDisplay
 from directory_dialog import DialogGUIBox
@@ -232,6 +233,14 @@ def subtract_lower(data):
 
     return total_area
 
+
+def lin_reg(x_vals, y_vals):
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x_vals, y_vals)
+
+    return slope, intercept
+
+
 def from_line_file(filename, filter_negative=True):
     """
     Loads file from directory ** needs input to be a fully qualified file
@@ -282,8 +291,6 @@ def build_plot_display(path, linescan=False):
         collec = SpectrumCollection.from_spectrum_data_list(spectra)
         heatmap = collec.gen_heatmap
 
-    # create_heatmap(spectra, 957, 968)
-    # remap_image(spectra)
     #wavenum = 4016.413574
     #img_array = collec.get_img_array(wavenum)
     #im = Image.fromarray(img_array)
@@ -297,7 +304,6 @@ def build_plot_display(path, linescan=False):
     window = PlotDisplay(collec, heatmap, path)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
-
 
 def main(path):
     # Must construct application first
