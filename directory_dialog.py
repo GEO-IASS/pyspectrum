@@ -22,6 +22,7 @@ class DialogGUIBox(QtGui.QWidget):
         lbBroswer = QtGui.QLabel('Directory:', self)
         lbBroswer.move(15, 40)
 
+        # Initialize radio buttons for selecting between line or area scan
         self.check_line = QtGui.QRadioButton("Line Scan", self)
         self.check_area = QtGui.QRadioButton("Area Scan", self)
         self.check_line.move(15, 90)
@@ -65,7 +66,10 @@ class DialogGUIBox(QtGui.QWidget):
         self.selected_directory = str(selected_directory)
 
     def run_bgsub(self):
+        # default set to area scan
         linescan = False
+
+        # if linescan is checked, change linescan bool to true
         if self.check_line.isChecked():
             linescan = True
         self.close()

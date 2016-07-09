@@ -10,7 +10,6 @@ import bisect
 from operator import itemgetter, attrgetter
 from pprint import pprint
 from collections import OrderedDict
-
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
@@ -63,13 +62,13 @@ class SpectrumCollection(object):
         y_coord = bisect.bisect_left(self.x_to_y[x], y)
         return (x_coord, y_coord)
 
-    def get_img_array(self, wavenum):
+    def get_img_array(self, wavenum, linescan):
         """Constructs a numpy array containing the intesity at the wavenum"""
         img_array = np.zeros((self.num_xs, self.num_ys))
         # Iterate through the spectra and get the intensity value at wavenum
         for spectrum in self.spectra:
             i, j = self._xy_to_pixel(spectrum.x, spectrum.y)
-            img_array[i][j] = spectrum.get_intens(wavenum)
+            img_array[i][j] = spectrum.get_intens(wavenum, linescan)
         return np.flipud(np.rot90(img_array))
 
     def map_images(self):
@@ -78,10 +77,12 @@ class SpectrumCollection(object):
         for spectrum in self.spectra:
             wavenums = spectrum.info[1]
         for wavenum in wavenums:
-            img_array = self.get_img_array(wavenum)
+            img_array = self.get_img_array(wavenum, linescan=False)
             #im = Image.fromarray(img_array)
             #im.save(str(wavenum) + ".tiff", "tiff")
             plt.imshow(img_array, cmap="gray")
+            ax = plt.gca()
+            ax.invert_yaxis()
             plt.savefig(str(wavenum) + ".tiff", bbox_inches='tight', dpi='figure')
             plt.cla()
 
@@ -96,9 +97,11 @@ class SpectrumCollection(object):
 
     def gen_heatmap(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
-        plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
-        plt.colorbar()
-        plt.savefig("heat_map.png")
+        hm = plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
+        cbar = plt.colorbar(hm, orientation='horizontal')
+        #cbar.ax.get_xaxis().labelpad = 10
+        #cbar.ax.set_xlabel('Intensity')
+        plt.savefig("heat_map.png", bbox_inches='tight')
 
     def gen_heatmap_linescan(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
@@ -115,7 +118,12 @@ class SpectrumCollection(object):
         for spectrum in self.spectra:
             wavenums = spectrum.info[1]
         for wavenum in wavenums:
-            img_array = self.get_img_array(wavenum)
+            img_array = self.get_img_array(wavenum, linescan=True)
+            #plt.imshow(img_array, cmap='gray', shape=(img_array.size,1))
+            #plt.yticks(np.arange(0, 2, 0.1))
+            #plt.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
+            #plt.savefig(str(wavenum) + ".tiff", dpi='figure')
+            #plt.cla()
             im = Image.fromarray(img_array)
             im.save(str(wavenum) + ".tiff", "tiff")
 
@@ -159,13 +167,15 @@ class SpectrumData(object):
 
         return SpectrumData(float(X), float(Y), data)
 
-    def get_intens(self, wavenum):
+    def get_intens(self, wavenum, linescan=False):
         """Gets the intensity corresponding to the given wavenumber"""
         # 'Flip' array so that we can get only the wavenumbers
         wavenums = self.info[1]
         # Find index of requested wavenumber
         indx = np.searchsorted(wavenums, wavenum)
         # Return intensity at that indx
+        if linescan==True:
+            indx-=1
         return self.info[0][indx]
 
     def __repr__(self):
@@ -235,6 +245,8 @@ def subtract_lower(data):
 
 
 def lin_reg(x_vals, y_vals):
+    """Performs linear regression analysis on points in data, where x_vals is a list
+    of the x values and y_vals is a list of the respective y values"""
 
     slope, intercept, r_value, p_value, std_err = stats.linregress(x_vals, y_vals)
 
@@ -272,11 +284,12 @@ def from_line_file(filename, filter_negative=True):
     # Once file ends, make a SpectrumData object with remaining data
     if len(data) > 0:
         spectra.append(SpectrumData(last_seen_xy[0], last_seen_xy[1], data))
-    print(spectra)
     # Use this method which builds the X->Y mapping for us into the SpectrumCollection object
     return SpectrumCollection.from_spectrum_data_list(spectra)
 
 def build_plot_display(path, linescan=False):
+    """Parses the data from the directory path selected in main,
+    then creates main GUI window"""
     if linescan==True:
         file_list = [f for f in os.listdir(path) if f.endswith(".txt")]
         os.chdir(path)
@@ -295,9 +308,10 @@ def build_plot_display(path, linescan=False):
     #img_array = collec.get_img_array(wavenum)
     #im = Image.fromarray(img_array)
     #im.save(str(wavenum) + ".tiff", "tiff")
-    #collec.map_images()
+    # collec.map_images()
+    # collec.map_linescan()
     # collec.gen_heatmap(926.365601, 970.27771)
-    #collec.gen_heatmap(2907.666992, 3024.534180)
+    # collec.gen_heatmap(2907.666992, 3024.534180)
     # collec.gen_heatmap(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run

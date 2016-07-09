@@ -28,6 +28,7 @@ class PlotDisplay(QtGui.QDialog):
         # initializations for image stack creation
         self.path = path
         self.stack = ImageStack(self.my_collec, self.path)
+        self.stack.setWindowTitle('TIFF Image Stack')
 
         self.ax = self.figure.add_subplot(111)
 
@@ -68,7 +69,7 @@ class PlotDisplay(QtGui.QDialog):
         splitter.addWidget(self.label_y)
         splitter.addWidget(self.drop_down_y)
 
-        # add left slider
+        # add left vertical line slider for peak selection
         self.sld = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.sld.setMinimum(0)
         self.wavenums = self.get_wavenums()
@@ -77,8 +78,7 @@ class PlotDisplay(QtGui.QDialog):
         self.curr_sld = self.sld.sliderPosition()
         self.sld.valueChanged.connect(self.sld_change)
 
-        #TODO
-        # add right slider
+        # add right vertical line slider for peak selection
         self.sld_2 = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.sld_2.setMinimum(0)
         self.wavenums = self.get_wavenums()
@@ -87,15 +87,15 @@ class PlotDisplay(QtGui.QDialog):
         self.curr_sld_2 = self.sld_2.sliderPosition()
         self.sld_2.valueChanged.connect(self.sld_change)
 
-        # add line
+        # initialize left and right lines to start at None
         self.vert_line = None
         self.vert_line_2 = None
 
-        # text edit to display wavenumber
+        # text edit to display wavenumber for left slider
         self.textedit = QtGui.QLabel()
         self.textedit.setStyleSheet('background-color: white')
 
-        #TODO
+        # text edit to display wavenumber for right slider
         self.textedit_2 = QtGui.QLabel()
         self.textedit_2.setStyleSheet('background-color: white')
 
@@ -104,7 +104,7 @@ class PlotDisplay(QtGui.QDialog):
         hslider_text.addWidget(self.sld, 2)
         hslider_text.addWidget(self.textedit, 1)
 
-        # group box to group elements together
+        # group box to group left slider and text elements together
         gbox = QtGui.QGroupBox("Left")
         gbox.setLayout(hslider_text)
         qpalette = QtGui.QPalette()
@@ -112,18 +112,19 @@ class PlotDisplay(QtGui.QDialog):
         gbox.setPalette(qpalette)
         #gbox.setStyleSheet("QGroupBox {border-radius: 9px; border:1px solid rgb(0, 0, 0); margin-top: 0.5em}")
 
-        #TODO
+        # set layout of left slider group box
         hslider_text_2 = QtGui.QHBoxLayout()
         hslider_text_2.addWidget(self.sld_2, 2)
         hslider_text_2.addWidget(self.textedit_2, 1)
 
-        # group box to group elements together
+        # group box to group right slider and text elements together
         gbox_2 = QtGui.QGroupBox("Right")
         gbox_2.setLayout(hslider_text_2)
         qpalette = QtGui.QPalette()
         qpalette.setColor(QtGui.QPalette.Dark, QtCore.Qt.white)
         gbox.setPalette(qpalette)
 
+        # set layout of right slider group box
         slider_layout = QtGui.QVBoxLayout()
         slider_layout.addWidget(gbox)
         slider_layout.addWidget(gbox_2)
@@ -135,13 +136,15 @@ class PlotDisplay(QtGui.QDialog):
         self.hm_button = QtGui.QPushButton('Generate Heatmap')
         self.hm_button.clicked.connect(self.hm_make)
 
+        # add button for image stack pop out window
         self.map_img = QtGui.QPushButton('View Image Stack')
         self.map_img.clicked.connect(self.img_stack)
 
-        self.bg_test = QtGui.QPushButton('BG Test')
+        # add baseline correction button
+        self.bg_test = QtGui.QPushButton('Baseline Correction')
         self.bg_test.clicked.connect(self.rb_test)
 
-        # set the layout
+        # set the layout of main window, adding all widgets
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
@@ -172,6 +175,7 @@ class PlotDisplay(QtGui.QDialog):
         for i, spectrum in enumerate(spectra_list):
             if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
                 self.ax.scatter(*zip(*self.my_collec.spectra[i].info_flipped))
+                self.ax.grid('on')
 
         # add left vert line
         self.vert_line = self.ax.axvline(x = 0)
@@ -193,13 +197,17 @@ class PlotDisplay(QtGui.QDialog):
         self.drop_down_y.addItems(curr_ys)
 
     def get_wavenums(self):
+        """"Makes a list of all wavenums in spectra"""
         wavenums = []
         for spectrum in self.my_collec.spectra:
             wavenums = spectrum.info[1]
 
+        wavenums.sort()
         return wavenums
 
     def sld_change(self):
+        """If left and/or right slider changes, set respective text to correct wavenumber, move line
+        vertical line to correct position"""
 
         self.vert_line.remove()
         self.vert_line_2.remove()
@@ -219,19 +227,29 @@ class PlotDisplay(QtGui.QDialog):
         self.canvas.draw()
 
     def hm_make(self):
+        """
+        Generate heatmap using values selected from left and right sliders
+        """
         curr_pos = self.sld.sliderPosition()
         curr_wavenum = self.wavenums[curr_pos]
 
         curr_pos_2 = self.sld_2.sliderPosition()
         curr_wavenum_2 = self.wavenums[curr_pos_2]
 
+        self.ax.grid('off')
         self.gen_heatmap(curr_wavenum, curr_wavenum_2)
 
+
     def img_stack(self):
+        """
+        Show scrollable set of TIFF images
+        """
         self.stack.show()
 
     def bg_sub_test(self):
-
+        """
+        Background subtraction using linear regression method
+        """
         curr_pos = self.sld.sliderPosition()
         curr_wavenum = self.wavenums[curr_pos]
 
@@ -276,6 +294,9 @@ class PlotDisplay(QtGui.QDialog):
                 self.canvas.draw()
 
     def rb_test(self):
+        """
+        Background/baseline subtraction using 'rubberband correction' method
+        """
         # get data from combo box
         curr_x = self.drop_down_x.itemText(self.drop_down_x.currentIndex())
         curr_y = self.drop_down_y.itemText(self.drop_down_y.currentIndex())
@@ -286,30 +307,47 @@ class PlotDisplay(QtGui.QDialog):
         spectra_list = self.my_collec.spectra
         for i, spectrum in enumerate(spectra_list):
             if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
-                curr_spec_plt = self.my_collec.spectra[i].info_flipped
                 curr_spec = self.my_collec.spectra[i]
 
+        # get x and y values in two separate lists
         x = curr_spec.info[1]
         y = curr_spec.info[0]
 
+        # zip to create np array of (x, y) tuples
         zipped = np.column_stack((x, y))
 
+        # find the convex hull, where array v contains indices of the vertex points arranged
+        # in the CCW direction
         v = ConvexHull(zipped).vertices
 
+        # rotate convex hull vertices until they start from the lowest one
         v = np.roll(v, -v.argmin())
 
+        # leave only the ascending part
         v = v[:v.argmax()]
 
+        # create baseline using linear interpolation between vertices
         bsln = np.interp(x, x[v], y[v])
 
+        # find new y values using baseline
         new_y = []
         for i, point in enumerate(y):
             point -= bsln[i]
             new_y.append(point)
 
+        # convert list of x and new y's into an np array of tuples
         x_y = np.column_stack((x, new_y))
 
+        # plot the new spectrum
         self.ax.scatter(*zip(*x_y))
+
+        self.ax.grid(which='both')
+
+        # add left vert line
+        self.vert_line = self.ax.axvline(x = 0)
+
+        # add right vert line
+        self.vert_line_2 = self.ax.axvline(x = 0)
 
         self.canvas.draw()
 
