@@ -97,19 +97,27 @@ class SpectrumCollection(object):
 
     def gen_heatmap(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
+        #heatmap_array[heatmap_array < 0] = 0
         hm = plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
         cbar = plt.colorbar(hm, orientation='horizontal')
+        #cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), rotation=30, horizontalalignment='left')
         #cbar.ax.get_xaxis().labelpad = 10
         #cbar.ax.set_xlabel('Intensity')
         plt.savefig("heat_map.png", bbox_inches='tight')
 
     def gen_heatmap_linescan(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
-        im = Image.fromarray(heatmap_array)
-        im.save("heatmap.tiff", "tiff")
+        #im = Image.fromarray(heatmap_array)
+        #im.save("heatmap.tiff", "tiff")
         #plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
-        #plt.colorbar()
-        #plt.savefig("heat_map.png")
+        w, h = plt.figaspect(.2)
+        plt.figure(figsize=(w, h))
+        heatmap_array[heatmap_array < 0] = 0
+        plt.pcolormesh(heatmap_array)
+        plt.yticks(np.arange(0, 1.1, 1))
+        plt.xlim(xmax=heatmap_array.size)
+        plt.colorbar(orientation='horizontal')
+        plt.savefig("heat_map.png")
 
     def map_linescan(self):
         """Constructs a greyscale image of intensity at each pixel, for each wavenum (LINESCAN specific
@@ -119,13 +127,17 @@ class SpectrumCollection(object):
             wavenums = spectrum.info[1]
         for wavenum in wavenums:
             img_array = self.get_img_array(wavenum, linescan=True)
+            w, h = plt.figaspect(.2)
+            plt.figure(figsize=(w, h))
+            plt.pcolormesh(img_array, cmap='gray')
+            plt.yticks(np.arange(0, 1.1, 1))
+            plt.xlim(xmax=img_array.size)
+            plt.savefig(str(wavenum) + ".tiff", dpi='figure')
+            plt.cla()
             #plt.imshow(img_array, cmap='gray', shape=(img_array.size,1))
-            #plt.yticks(np.arange(0, 2, 0.1))
             #plt.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
-            #plt.savefig(str(wavenum) + ".tiff", dpi='figure')
-            #plt.cla()
-            im = Image.fromarray(img_array)
-            im.save(str(wavenum) + ".tiff", "tiff")
+            #im = Image.fromarray(img_array)
+            #im.save(str(wavenum) + ".tiff", "tiff")
 
 class SpectrumData(object):
     """ Object representing the spectrum at a single (X, Y) coordinate. """
@@ -295,6 +307,7 @@ def build_plot_display(path, linescan=False):
         os.chdir(path)
         collec = from_line_file(path + "/"  + str(file_list[0]))
         heatmap = collec.gen_heatmap_linescan
+        map = collec.map_linescan
     else:
         file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
         os.chdir(path)
@@ -303,19 +316,14 @@ def build_plot_display(path, linescan=False):
             spectra.append(SpectrumData.from_file(each))
         collec = SpectrumCollection.from_spectrum_data_list(spectra)
         heatmap = collec.gen_heatmap
+        map = collec.map_images
 
-    #wavenum = 4016.413574
-    #img_array = collec.get_img_array(wavenum)
-    #im = Image.fromarray(img_array)
-    #im.save(str(wavenum) + ".tiff", "tiff")
-    # collec.map_images()
-    # collec.map_linescan()
-    # collec.gen_heatmap(926.365601, 970.27771)
-    # collec.gen_heatmap(2907.666992, 3024.534180)
-    # collec.gen_heatmap(2822.091309, 2879.218262)
+    #collec.gen_heatmap_linescan(926.365601, 970.27771)
+    #collec.gen_heatmap_linescan(2907.666992, 3024.534180)
+    #collec.gen_heatmap_linescan(2822.091309, 2879.218262)
 
     # Create the window with the collection, show and run
-    window = PlotDisplay(collec, heatmap, path)
+    window = PlotDisplay(collec, heatmap, map, path)
     window.setWindowTitle("PySpectrum Analyzer")
     window.show()
 

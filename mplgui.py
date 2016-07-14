@@ -10,7 +10,7 @@ from tiff_stack import ImageStack
 
 class PlotDisplay(QtGui.QDialog):
 
-    def __init__(self, spectrum_collec, gen_heatmap, path, parent=None):
+    def __init__(self, spectrum_collec, gen_heatmap, map, path, parent=None):
 
         super(PlotDisplay, self).__init__(parent)
 
@@ -22,6 +22,9 @@ class PlotDisplay(QtGui.QDialog):
 
         # callback to gen heatmap
         self.gen_heatmap = gen_heatmap
+
+        # callback to map images
+        self.map = map
 
         #self.lin_reg = lin_reg
 
@@ -244,6 +247,7 @@ class PlotDisplay(QtGui.QDialog):
         """
         Show scrollable set of TIFF images
         """
+        self.map()
         self.stack.show()
 
     def bg_sub_test(self):
@@ -309,27 +313,27 @@ class PlotDisplay(QtGui.QDialog):
             if (spectrum.x == float(curr_x)) and (spectrum.y == float(curr_y)):
                 curr_spec = self.my_collec.spectra[i]
 
-        # get x and y values in two separate lists
+        # Separate x and y values into two separate lists
         x = curr_spec.info[1]
         y = curr_spec.info[0]
 
-        # zip to create np array of (x, y) tuples
+        # Zip to create np array of (x, y) tuples
         zipped = np.column_stack((x, y))
 
-        # find the convex hull, where array v contains indices of the vertex points arranged
-        # in the CCW direction
+        # Find the convex hull, where array v contains the indices of the convex hull
+        # vertex points arranged in a counter clockwise direction
         v = ConvexHull(zipped).vertices
 
-        # rotate convex hull vertices until they start from the lowest one
+        # Rotate convex hull vertices until v starts from the lowest one
         v = np.roll(v, -v.argmin())
 
-        # leave only the ascending part
+        # Leave only the ascending part
         v = v[:v.argmax()]
 
-        # create baseline using linear interpolation between vertices
+        # Create baseline using linear interpolation between vertices
         bsln = np.interp(x, x[v], y[v])
 
-        # find new y values using baseline
+        # Find new y values using baseline
         new_y = []
         for i, point in enumerate(y):
             point -= bsln[i]
