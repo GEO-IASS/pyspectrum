@@ -8,19 +8,14 @@ import sys
 import re
 import bisect
 from operator import itemgetter, attrgetter
-from pprint import pprint
 from collections import OrderedDict
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from PySide import QtGui
 from scipy import stats
-
 from mplgui import PlotDisplay
 from directory_dialog import DialogGUIBox
-
-DEFAULT_PATH = "/home/danielle/Documents/LMCE_one"
-
 
 class SpectrumCollection(object):
 
@@ -97,21 +92,20 @@ class SpectrumCollection(object):
 
     def gen_heatmap(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
-        #heatmap_array[heatmap_array < 0] = 0
+        # configure array so negative values changed to zero
+        heatmap_array[heatmap_array < 0] = 0
         hm = plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
-        cbar = plt.colorbar(hm, orientation='horizontal')
-        #cbar.ax.set_xticklabels(cbar.ax.get_xticklabels(), rotation=30, horizontalalignment='left')
-        #cbar.ax.get_xaxis().labelpad = 10
-        #cbar.ax.set_xlabel('Intensity')
+        plt.colorbar(hm, orientation='horizontal')
         plt.savefig("heat_map.png", bbox_inches='tight')
 
     def gen_heatmap_linescan(self, wnum_1, wnum_2):
         heatmap_array = self.get_heatmap_array(wnum_1, wnum_2)
-        #im = Image.fromarray(heatmap_array)
-        #im.save("heatmap.tiff", "tiff")
-        #plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
+        # if true aspect ratio is desired, use Image instead of imshow
+        # im = Image.fromarray(heatmap_array)
+        # im.save("heatmap.tiff", "tiff")
         w, h = plt.figaspect(.1)
         plt.figure(figsize=(w, h))
+        # configure array so negative values changed to zero
         heatmap_array[heatmap_array < 0] = 0
         plt.pcolormesh(heatmap_array)
         plt.yticks(np.arange(0, 1.1, 1))
@@ -134,8 +128,6 @@ class SpectrumCollection(object):
             plt.xlim(xmax=img_array.size)
             plt.savefig(str(wavenum) + ".tiff", dpi='figure')
             plt.cla()
-            #plt.imshow(img_array, cmap='gray', shape=(img_array.size,1))
-            #plt.tick_params(axis='x', which='both', bottom='off', top='off', labelbottom='off')
             #im = Image.fromarray(img_array)
             #im.save(str(wavenum) + ".tiff", "tiff")
 
@@ -318,10 +310,6 @@ def build_plot_display(path, linescan=False):
         heatmap = collec.gen_heatmap
         map = collec.map_images
 
-    #collec.gen_heatmap_linescan(926.365601, 970.27771)
-    #collec.gen_heatmap_linescan(2907.666992, 3024.534180)
-    #collec.gen_heatmap_linescan(2822.091309, 2879.218262)
-
     # Create the window with the collection, show and run
     window = PlotDisplay(collec, heatmap, map, path)
     window.setWindowTitle("PySpectrum Analyzer")
@@ -339,4 +327,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PATH)
+    main(sys.argv[1] if len(sys.argv) > 1 else None)

@@ -7,8 +7,8 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 import matplotlib.pyplot as plt
 from tiff_stack import ImageStack
 
-
 class PlotDisplay(QtGui.QDialog):
+    """Creates the main application window"""
 
     def __init__(self, spectrum_collec, gen_heatmap, map, path, parent=None):
 
@@ -113,7 +113,6 @@ class PlotDisplay(QtGui.QDialog):
         qpalette = QtGui.QPalette()
         qpalette.setColor(QtGui.QPalette.Dark, QtCore.Qt.white)
         gbox.setPalette(qpalette)
-        #gbox.setStyleSheet("QGroupBox {border-radius: 9px; border:1px solid rgb(0, 0, 0); margin-top: 0.5em}")
 
         # set layout of left slider group box
         hslider_text_2 = QtGui.QHBoxLayout()
@@ -153,8 +152,6 @@ class PlotDisplay(QtGui.QDialog):
         layout.addWidget(self.canvas)
         layout.addWidget(self.button)
         layout.addWidget(splitter)
-        #layout.addWidget(gbox)
-        #layout.addWidget(gbox_2)
         layout.addWidget(slider_group)
         layout.addWidget(self.hm_button)
         layout.addWidget(self.map_img)
@@ -163,8 +160,6 @@ class PlotDisplay(QtGui.QDialog):
 
     def plot(self):
         """"Create matplotlib plot for specific X and Y contained in my_collec"""
-
-        # create an axis
 
         # discards the old graph
         self.ax.hold(False)
@@ -247,7 +242,9 @@ class PlotDisplay(QtGui.QDialog):
         """
         Show scrollable set of TIFF images
         """
-        self.map()
+        file_names = [f for f in sorted(os.listdir(self.path)) if f.endswith(".tiff")]
+        if len(file_names) == 0:
+            self.map()
         self.stack.show()
 
     def bg_sub_test(self):
@@ -358,7 +355,7 @@ class PlotDisplay(QtGui.QDialog):
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
 
-    main = PlotDisplay(None, None, None)
+    main = PlotDisplay(None, None, None, None)
     main.show()
 
     sys.exit(app.exec_())

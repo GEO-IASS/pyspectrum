@@ -1,16 +1,10 @@
 import csv
-# go through the txt file
-# get first x and y, put wavenum & intens in new file
-# if next x and y the same as first, put wavenum & intens in same file
-# if next x and y are different, start new txt file and put wavenum & intens there
-# repeat
 from pyspec import SpectrumData, SpectrumCollection
-from PIL import Image
 
 def from_line_file(filename, filter_negative=True):
     """
-    Loads file from directory ** needs input to be a fully qualified file
-    path.
+    Loads linescan single file from directory
+    ** needs input to be a fully qualified file path.
     Returns a new list of tuples (x,y) containing points, where
     x = wavenums and y = intensities.
     """
@@ -41,6 +35,3 @@ def from_line_file(filename, filter_negative=True):
     # Use this method which builds the X->Y mapping for us into the SpectrumCollection object
     return SpectrumCollection.from_spectrum_data_list(spectra)
 
-path = "/home/danielle/Documents/Raman Linescan/TP,U,L,1_linescan.txt"
-collec = from_line_file(path)
-collec.gen_heatmap_linescan(2907.666992, 3024.534180)

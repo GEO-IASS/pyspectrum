@@ -1,10 +1,5 @@
-import sys
 from PySide import QtGui
-import sys, os
-
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
+import sys
 
 class DialogGUIBox(QtGui.QWidget):
 
@@ -35,6 +30,7 @@ class DialogGUIBox(QtGui.QWidget):
         self.etBrowser.isReadOnly = 0
         self.selected_directory = None
 
+        # initialize browse, open, close buttons
         btnBrowse = QtGui.QPushButton('Browse...', self)
         btnOpen = QtGui.QPushButton('Open', self)
         btnClose = QtGui.QPushButton('Close', self)

@@ -2,8 +2,6 @@
 from PySide import QtGui, QtCore
 import os
 
-path = '/home/danielle/Documents/LMCE/'
-
 class ImageStack(QtGui.QWidget):
     def __init__(self, spectrum_collec, path, parent=None):
         QtGui.QWidget.__init__(self, parent)
@@ -68,17 +66,5 @@ class ImageStack(QtGui.QWidget):
         sorted_img_files.sort(key=float)
         return sorted_img_files
 
-"""
-file_list = [f for f in sorted(os.listdir(path)) if f.endswith(".txt")]
-os.chdir(path)
-spectra = []
-for each in file_list:
-    spectra.append(SpectrumData.from_file(each))
-collec = SpectrumCollection.from_spectrum_data_list(spectra)
 
-app = QtGui.QApplication(sys.argv)
-main = ImageStack(None)
-main.show()
-sys.exit(app.exec_())
 
-"""
