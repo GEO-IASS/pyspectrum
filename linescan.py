@@ -4,7 +4,7 @@ import csv
 # if next x and y the same as first, put wavenum & intens in same file
 # if next x and y are different, start new txt file and put wavenum & intens there
 # repeat
-from bgsub import SpectrumData, SpectrumCollection
+from pyspec import SpectrumData, SpectrumCollection
 from PIL import Image
 
 def from_line_file(filename, filter_negative=True):

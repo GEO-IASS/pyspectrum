@@ -110,7 +110,7 @@ class SpectrumCollection(object):
         #im = Image.fromarray(heatmap_array)
         #im.save("heatmap.tiff", "tiff")
         #plt.imshow(heatmap_array, interpolation='bilinear', origin='lower', cmap='hot')
-        w, h = plt.figaspect(.2)
+        w, h = plt.figaspect(.1)
         plt.figure(figsize=(w, h))
         heatmap_array[heatmap_array < 0] = 0
         plt.pcolormesh(heatmap_array)
@@ -127,7 +127,7 @@ class SpectrumCollection(object):
             wavenums = spectrum.info[1]
         for wavenum in wavenums:
             img_array = self.get_img_array(wavenum, linescan=True)
-            w, h = plt.figaspect(.2)
+            w, h = plt.figaspect(0.1)
             plt.figure(figsize=(w, h))
             plt.pcolormesh(img_array, cmap='gray')
             plt.yticks(np.arange(0, 1.1, 1))
